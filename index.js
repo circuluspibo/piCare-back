@@ -10,10 +10,12 @@ import {
   parseSystemData,
 } from './src/utils/dataFilter.js';
 import cronPlugin from './src/plugins/cron.js';
-import { postHardwareLog } from './src/api/index.js';
+import { postHardwareLog, fetchHwId } from './src/api/index.js';
 import { execSync } from 'child_process';
 
 const fastify = Fastify({ logger: true });
+
+let hwId = null;
 
 await fastify.register(cors, {
   origin: true,
@@ -137,7 +139,7 @@ fastify.post(
           const device = await parseDeviceData();
           const network = await parseNetworkData();
           result = {
-            hwId: '69797b51839fad67e620eff6',
+            hwId,
             status: { ...system, ...device },
             network,
           };
@@ -146,7 +148,7 @@ fastify.post(
         case 'activity': {
           const power = await parsePowerData();
           result = {
-            hwId: '69797b51839fad67e620eff6',
+            hwId,
             activityType: 'power',
             value: 1,
             meta: power,
@@ -234,6 +236,12 @@ await fastify.register(cronPlugin, '0 * * * *'); // 매 정시 저장
 // NOTE: 서버 시작
 const start = async () => {
   try {
+    hwId = await fetchHwId();
+    if (hwId) {
+      fastify.log.info(`[HW_ID] CPU 서비스에서 로드: ${hwId}`);
+    } else {
+      fastify.log.warn('[HW_ID] CPU 서비스에서 uuid를 받지 못했습니다. cli_manager 로그의 hwId가 null로 기록됩니다.');
+    }
     await fastify.listen({ port: 4000 });
   } catch (err) {
     fastify.log.error(err);

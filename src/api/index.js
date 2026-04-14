@@ -2,11 +2,32 @@ import axios from 'axios';
 import 'dotenv/config';
 
 const BASE_URL = process.env.IAPI_BASE_URL;
+const CPU_BASE_URL = process.env.CPU_BASE_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 5000, // 타임아웃 설정 추천
+  timeout: 5000,
 });
+
+const cpuApi = axios.create({
+  baseURL: CPU_BASE_URL,
+  timeout: 3000,
+});
+
+/**
+ * CPU 서비스에서 기기 고유 UUID를 조회한다.
+ * 실패 시 null을 반환하며 서버 기동을 막지 않는다.
+ */
+export const fetchHwId = async () => {
+  try {
+    const { data, status } = await cpuApi.get('/');
+    if (status !== 200) throw new Error(`HTTP ${status}`);
+    return data.uuid ?? null;
+  } catch (error) {
+    console.error('[FAILED] fetchHwId:', error.message);
+    return null;
+  }
+};
 
 /**
  * DB 서버로 로그를 전송하는 함수
