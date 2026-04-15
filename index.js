@@ -12,8 +12,21 @@ import {
 import cronPlugin from './src/plugins/cron.js';
 import { postHardwareLog, fetchHwId } from './src/api/index.js';
 import { execSync } from 'child_process';
+import { log } from './src/utils/logger.js';
 
-const fastify = Fastify({ logger: true });
+const fastify = Fastify({ logger: false });
+
+fastify.addHook('onRequest', (request, reply, done) => {
+  request.startTime = Date.now();
+  log.req(request.method, request.url);
+  done();
+});
+
+fastify.addHook('onResponse', (request, reply, done) => {
+  const ms = Date.now() - request.startTime;
+  log.res(request.method, request.url, reply.statusCode, ms);
+  done();
+});
 
 let hwId = null;
 
@@ -61,11 +74,11 @@ fastify.post(
     try {
       const payload = request.body;
       // TODO: DB 서버로 보낼 파싱 및 보내기
-      fastify.log.info('[SUCCESS] feature MSG: ', payload);
+      log.ok(`feature_log hwId=${payload.hwId} featureId=${payload.featureId}`);
       await postHardwareLog('/v1/feature_log', payload);
       return { success: true };
     } catch (error) {
-      fastify.log.error('[FAILED] feature MSG: ', error);
+      log.error(`feature_log FAILED: ${error.message}`);
       return reply.status(500).send({ success: false, error: 'Relay Failed' });
     }
   },
@@ -98,7 +111,7 @@ fastify.post(
       await postHardwareLog('/v1/interaction_log', payload);
       return { success: true };
     } catch (error) {
-      fastify.log.error('[FAILED] interation MSG : ', error);
+      log.error(`interaction_log FAILED: ${error.message}`);
       return reply.status(500).send({ success: false, error: 'Relay Failed' });
     }
   },
@@ -165,7 +178,7 @@ fastify.post(
         data: result,
       };
     } catch (error) {
-      fastify.log.error(`[FAILED] cli_manager MSG: ${error}`);
+      log.error(`cli_manager FAILED: ${error.message}`);
 
       return reply.status(500).send({
         success: false,
@@ -211,14 +224,14 @@ fastify.post(
       // @DEFAULT_SINK@는 현재 활성화된 기본 스피커를 의미합니다.
       execSync(`pactl set-sink-volume @DEFAULT_SINK@ ${level}%`);
 
-      fastify.log.info(`[SUCCESS] System Volume Set to: ${level}%`);
+      log.ok(`system_volume set to ${level}%`);
 
       return {
         success: true,
         data: { currentVolume: level },
       };
     } catch (error) {
-      fastify.log.error(`[FAILED] system_volume MSG: ${error.message}`);
+      log.error(`system_volume FAILED: ${error.message}`);
 
       return reply.status(500).send({
         success: false,
@@ -238,13 +251,14 @@ const start = async () => {
   try {
     hwId = await fetchHwId();
     if (hwId) {
-      fastify.log.info(`[HW_ID] CPU 서비스에서 로드: ${hwId}`);
+      log.ok(`hwId loaded: ${hwId}`);
     } else {
-      fastify.log.warn('[HW_ID] CPU 서비스에서 uuid를 받지 못했습니다. cli_manager 로그의 hwId가 null로 기록됩니다.');
+      log.warn('hwId 로드 실패 — cli_manager 로그의 hwId가 null로 기록됩니다.');
     }
-    await fastify.listen({ port: 4000 });
+    await fastify.listen({ port: 4000, host: '0.0.0.0' });
+    log.info('piCare-back listening on :4000');
   } catch (err) {
-    fastify.log.error(err);
+    log.error(err.message);
     process.exit(1);
   }
 };

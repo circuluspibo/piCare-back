@@ -1,4 +1,5 @@
 import cron from 'node-cron';
+import { log } from '../utils/logger.js';
 
 export default async function cronPlugin(fastify, opts) {
   // 1. Status 수집 크론
@@ -10,10 +11,9 @@ export default async function cronPlugin(fastify, opts) {
         payload: { type: 'status' },
       });
       const { data } = JSON.parse(response.payload);
-      fastify.log.info({ data }, '[SUCCESS] Status Cron');
-      return data;
+      log.cron('status', `hwId=${data?.hwId}`);
     } catch (error) {
-      fastify.log.error(`[FAILED] status ERROR MSG: ${error.message}`);
+      log.error(`cron status FAILED: ${error.message}`);
     }
   });
 
@@ -26,10 +26,9 @@ export default async function cronPlugin(fastify, opts) {
         payload: { type: 'activity' },
       });
       const { data } = JSON.parse(response.payload);
-      fastify.log.info({ data }, '[SUCCESS] Activity Cron');
-      return data;
+      log.cron('activity', `hwId=${data?.hwId} type=${data?.activityType}`);
     } catch (error) {
-      fastify.log.error(`[FAILED] activity ERROR MSG: ${error.message}`);
+      log.error(`cron activity FAILED: ${error.message}`);
     }
   });
 }

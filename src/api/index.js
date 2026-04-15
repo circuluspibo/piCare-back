@@ -1,5 +1,6 @@
-import axios from 'axios';
-import 'dotenv/config';
+import axios from "axios";
+import "dotenv/config";
+import { log } from "../utils/logger.js";
 
 const BASE_URL = process.env.IAPI_BASE_URL;
 const CPU_BASE_URL = process.env.CPU_BASE_URL;
@@ -20,11 +21,11 @@ const cpuApi = axios.create({
  */
 export const fetchHwId = async () => {
   try {
-    const { data, status } = await cpuApi.get('/');
+    const { data, status } = await cpuApi.get("/");
     if (status !== 200) throw new Error(`HTTP ${status}`);
     return data.uuid ?? null;
   } catch (error) {
-    console.error('[FAILED] fetchHwId:', error.message);
+    log.error(`fetchHwId FAILED: ${error.message}`);
     return null;
   }
 };
@@ -35,18 +36,14 @@ export const fetchHwId = async () => {
  */
 export const postHardwareLog = async (endpoint, params) => {
   try {
-    console.log(`[RELAY TO DB] ${endpoint}`, params);
-
-    // axios는 기본적으로 2xx가 아니면 에러를 던집니다.
+    log.info(`RELAY → ${endpoint}`);
     const response = await api.post(endpoint, params);
-
+    log.ok(`RELAY ← ${endpoint} ${response.status}`);
     return response.data;
   } catch (error) {
-    // 1. axios 에러인 경우 상세 메시지 추출
     const errorMsg = error.response?.data?.message || error.message;
-    console.error(`[AXIOS ERROR] ${endpoint}: ${errorMsg}`);
-
-    // 2. 상위 라우터로 에러를 던져야 라우터의 catch가 작동합니다.
+    const status = error.response?.status ?? '---';
+    log.error(`RELAY FAILED ${status} ${endpoint}: ${errorMsg}`);
     throw new Error(errorMsg);
   }
 };
