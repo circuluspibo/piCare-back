@@ -10,7 +10,7 @@ import {
   parseSystemData,
 } from './src/utils/dataFilter.js';
 import cronPlugin from './src/plugins/cron.js';
-import { postHardwareLog, fetchHwId } from './src/api/index.js';
+import { postHardwareLog, fetchHwId, registerHardware } from './src/api/index.js';
 import { execSync } from 'child_process';
 import { log } from './src/utils/logger.js';
 
@@ -249,6 +249,7 @@ const retryFetchHwId = async () => {
     hwId = await fetchHwId();
     if (hwId) {
       log.ok(`hwId loaded: ${hwId}`);
+      registerHardware(hwId);
     } else {
       log.warn(`hwId 로드 실패 — ${INTERVAL / 1000}초 후 재시도`);
       await new Promise((r) => setTimeout(r, INTERVAL));
