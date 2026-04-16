@@ -36,7 +36,7 @@ export const fetchHwId = async () => {
  */
 export const registerHardware = async (serial) => {
   try {
-    const { data } = await api.post("/hw", {
+    const { data } = await api.post("hw", {
       serial,
       manager_id: "",
       type: "picare",
