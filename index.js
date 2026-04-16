@@ -246,17 +246,25 @@ await fastify.register(cronPlugin, '0 * * * *'); // 매 정시 저장
 // 테스트용 인터벌
 // await fastify.register(cronPlugin, '*/1 * * * *');
 
-// NOTE: 서버 시작
-const start = async () => {
-  try {
+const retryFetchHwId = async () => {
+  const INTERVAL = 5000;
+  while (!hwId) {
     hwId = await fetchHwId();
     if (hwId) {
       log.ok(`hwId loaded: ${hwId}`);
     } else {
-      log.warn('hwId 로드 실패 — cli_manager 로그의 hwId가 null로 기록됩니다.');
+      log.warn(`hwId 로드 실패 — ${INTERVAL / 1000}초 후 재시도`);
+      await new Promise((r) => setTimeout(r, INTERVAL));
     }
+  }
+};
+
+// NOTE: 서버 시작
+const start = async () => {
+  try {
     await fastify.listen({ port: 4000, host: '0.0.0.0' });
     log.info('piCare-back listening on :4000');
+    retryFetchHwId(); // 서버 시작 후 백그라운드에서 hwId 로드
   } catch (err) {
     log.error(err.message);
     process.exit(1);
