@@ -171,6 +171,54 @@ piCare-back/
 
 ---
 
+## 11. MongoDB 로컬 큐 구현 시 필수 확인 사항
+
+> 로컬 로그 큐(오프라인 대응) 구현 전 반드시 아래 두 가지를 먼저 확인할 것.
+> 확인 없이 임의로 기본값·임시 스키마를 사용하지 말 것.
+
+### MongoDB 연결 인증
+
+- 현재 piCare 기기의 MongoDB는 **인증 없음** (`Access control is not enabled`).
+- 연결 URI: `mongodb://localhost:27017/picare` (인증 정보 불필요)
+- 향후 인증이 추가될 경우 `.env`의 `MONGO_URI`에 `mongodb://username:password@localhost:27017/picare` 형식으로 설정.
+
+### 개발 PC에서 piCare DB 원격 접속 (SSH 터널)
+
+piCare의 MongoDB는 `127.0.0.1`에만 바인딩되어 있어 외부 직접 접속 불가.
+같은 네트워크라면 SSH 터널로 접근한다.
+
+```bash
+# 1. SSH 터널 열기 (piCare IP: 192.168.1.188)
+#    로컬 27017이 이미 사용 중이면 다른 포트 사용 (예: 37017)
+ssh -L 37017:localhost:27017 picare@192.168.1.188
+
+# 2. 새 터미널에서 접속
+mongosh mongodb://localhost:37017
+
+# 또는 MongoDB Compass에서
+# mongodb://localhost:37017 로 연결
+```
+
+- 로컬 포트 충돌 시 `lsof -i :27017`로 점유 프로세스 확인 후 다른 포트 사용.
+
+### 로컬 Log 모델 스키마
+
+로컬 큐(`src/models/log.js`)는 릴레이 큐 역할이므로 `payload`는 Mixed로 저장하되,
+`endpoint`는 enum으로 제한하고 `hwId`는 별도 필드로 분리한다.
+
+외부 IAPI(`circulus-iapi`)의 실제 스키마 (`models/log/` 참고):
+
+| endpoint | payload 필드 |
+|---|---|
+| `feature_log` | `hwId`, `featureId`(required), `command`, `duration`(required) |
+| `interaction_log` | `hwId`, `type`(required), `content`, `analysis` |
+| `status_log` | `hwId`, `status`(cpu/mem/disk/temp/battery), `network`(signal/ssid/ip), `location` |
+| `activity_log` | `hwId`, `activityType`(required), `value`(required), `meta` |
+
+- `hwId`는 외부 IAPI에서 `ObjectId`(ref: hws)로 관리됨. piCare-back에서는 String으로 relay 시 사용.
+
+---
+
 ## 10. 운영 시 주의사항
 
 - `.env` 파일에 `IAPI_BASE_URL`과 `CPU_BASE_URL`이 반드시 설정되어 있어야 함. `CPU_BASE_URL`은 CPU 서비스 주소 (기본값: `http://127.0.0.1:59530`)

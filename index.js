@@ -11,10 +11,11 @@ import {
 } from "./src/utils/dataFilter.js";
 import cronPlugin from "./src/plugins/cron.js";
 import {
-  postHardwareLog,
   fetchHwId,
   registerHardware,
 } from "./src/api/index.js";
+import { connectDB } from "./src/db/index.js";
+import { saveAndRelay } from "./src/utils/syncLog.js";
 import { execSync } from "child_process";
 import { log } from "./src/utils/logger.js";
 
@@ -77,7 +78,7 @@ fastify.post(
     try {
       const payload = { ...request.body, hwId };
       log.ok(`feature_log hwId=${hwId} featureId=${payload.featureId}`);
-      await postHardwareLog("feature_log", payload);
+      await saveAndRelay("feature_log", payload);
       return { success: true };
     } catch (error) {
       log.error(`feature_log FAILED: ${error.message}`);
@@ -109,7 +110,7 @@ fastify.post(
   async (request, reply) => {
     try {
       const payload = { ...request.body, hwId };
-      await postHardwareLog("interaction_log", payload);
+      await saveAndRelay("interaction_log", payload);
       return { success: true };
     } catch (error) {
       log.error(`interaction_log FAILED: ${error.message}`);
@@ -173,7 +174,7 @@ fastify.post(
           throw new Error("No case");
         }
       }
-      await postHardwareLog(`${type}_log`, result);
+      await saveAndRelay(`${type}_log`, result);
       return {
         success: true,
         data: result,
@@ -264,6 +265,7 @@ const retryFetchHwId = async () => {
 // NOTE: 서버 시작
 const start = async () => {
   try {
+    await connectDB();
     await fastify.listen({ port: 4000, host: "0.0.0.0" });
     log.info("piCare-back listening on :4000");
     retryFetchHwId(); // 서버 시작 후 백그라운드에서 hwId 로드

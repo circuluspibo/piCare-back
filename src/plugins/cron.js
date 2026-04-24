@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { log } from '../utils/logger.js';
+import { flushPending } from '../utils/syncLog.js';
 
 export default async function cronPlugin(fastify, opts) {
   // 1. Status 수집 크론
@@ -29,6 +30,15 @@ export default async function cronPlugin(fastify, opts) {
       log.cron('activity', `hwId=${data?.hwId} type=${data?.activityType}`);
     } catch (error) {
       log.error(`cron activity FAILED: ${error.message}`);
+    }
+  });
+
+  // 3. pending 로그 재시도 (5분마다)
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      await flushPending();
+    } catch (error) {
+      log.error(`cron flushPending FAILED: ${error.message}`);
     }
   });
 }
