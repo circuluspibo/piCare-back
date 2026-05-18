@@ -10,14 +10,15 @@ const MAX_RETRY = 5;
  * DB가 없으면 직접 relay로 폴백.
  */
 export const saveAndRelay = async (endpoint, payload) => {
+  const stampedPayload = { ...payload, recordedAt: new Date().toISOString() };
   try {
-    const doc = await Log.create({ endpoint, hwId: payload.hwId ?? null, payload });
-    postHardwareLog(endpoint, payload)
+    const doc = await Log.create({ endpoint, hwId: payload.hwId ?? null, payload: stampedPayload });
+    postHardwareLog(endpoint, stampedPayload)
       .then(() => Log.findByIdAndUpdate(doc._id, { syncStatus: 'synced' }))
       .catch(() => {});
   } catch {
     log.warn(`DB unavailable — direct relay: ${endpoint}`);
-    await postHardwareLog(endpoint, payload);
+    await postHardwareLog(endpoint, stampedPayload);
   }
 };
 
