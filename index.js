@@ -191,6 +191,30 @@ fastify.post(
 );
 
 fastify.post(
+  "/v1/client_log",
+  {
+    schema: {
+      description: "프론트 디버그 로그 수신",
+      tags: ["디버그"],
+      body: {
+        type: "object",
+        required: ["message"],
+        properties: {
+          level: { type: "string" },
+          message: { type: "string" },
+        },
+      },
+    },
+  },
+  async (request) => {
+    const { level = "info", message } = request.body;
+    const fn = log[level] ?? log.info;
+    fn(`[CLIENT] ${message}`);
+    return { success: true };
+  },
+);
+
+fastify.post(
   "/v1/system_volume",
   {
     schema: {
