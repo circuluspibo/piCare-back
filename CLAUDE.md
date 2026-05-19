@@ -171,7 +171,72 @@ piCare-back/
 
 ---
 
-## 11. MongoDB 로컬 큐 구현 시 필수 확인 사항
+## 11. 로그 타입별 수집 구조
+
+piCare-back이 중계하는 로그는 4종류다. 수집 주체와 시점이 각각 다르므로 수정 전 반드시 확인할 것.
+
+### 수집 주체별 정리
+
+| 로그 | 수집 주체 | 시점 | 전송 방식 |
+|---|---|---|---|
+| `feature_log` | piCare-front (`useTracker.js`) | 기능 진입(`start`) / 완료(`complete`) | HTTP POST `/v1/feature_log` |
+| `interaction_log` | piCare-front (`LogContext`) | 훈련 세션 완료 시 / heartbeat 변화 감지 시 | HTTP POST `/v1/interaction_log` |
+| `status_log` | piCare-back cron | 매 정시(`0 * * * *`) | 내부 inject → `/v1/cli_manager` |
+| `activity_log` | piCare-back cron | 매 정시(`0 * * * *`) | 내부 inject → `/v1/cli_manager` |
+
+### payload 구조 상세
+
+**`feature_log`** — 기능 단위 사용 추적
+```json
+{
+  "hwId": "...",
+  "featureId": "exercise_flag",
+  "command": "start | complete",
+  "duration": 180
+}
+```
+`featureId` 목록: `exercise_flag/head/grab`, `training_color/number/piano`, `ai_draw/mirror/voice`, `learn_listen/read/write`
+
+**`interaction_log`** — 세션 단위 상세 기록
+```json
+{
+  "hwId": "...",
+  "type": "flag | head | grab | color | ... | heartbeat | main",
+  "content": { "..." }
+}
+```
+`type` 값은 URL 마지막 경로 세그먼트 (`flag`, `color`, `draw`, `listen` 등) 또는 `heartbeat`
+
+**`status_log`** — 시스템 상태 (매 정시 자동 수집)
+```json
+{
+  "hwId": "...",
+  "status": { "geo": "...", "power": "...", "temp": "...", "cpu": "...", "mem": "...", "disk": "...", "usbCnt": 0, "usbDur": 0, "trafficAmount": 0 },
+  "network": { "ping": true, "down": 0, "up": 0, "ip": "...", "ssid": "...", "signal": 0, "..." }
+}
+```
+> ⚠️ IAPI 스키마 기준 `status.battery`와 최상위 `location` 필드가 누락된 상태. 현재 bash 명령어로 수집하지 않음. dashboard에 status 위젯 추가 시 이 두 필드 수집 방법 먼저 결정할 것.
+
+**`activity_log`** — 전원 이력 (매 정시 자동 수집)
+```json
+{
+  "hwId": "...",
+  "activityType": "power",
+  "value": 1,
+  "meta": { "onCnt": "...", "onDur": 0, "offCnt": "...", "offDur": 0 }
+}
+```
+
+### cron 스케줄 현황 (`src/plugins/cron.js`)
+
+| cron | 동작 |
+|---|---|
+| `0 * * * *` (매 정시) | status 수집, activity 수집 |
+| `*/5 * * * *` (5분마다) | pending 로그 flush (`flushPending`) |
+
+---
+
+## 12. MongoDB 로컬 큐 구현 시 필수 확인 사항
 
 > 로컬 로그 큐(오프라인 대응) 구현 전 반드시 아래 두 가지를 먼저 확인할 것.
 > 확인 없이 임의로 기본값·임시 스키마를 사용하지 말 것.

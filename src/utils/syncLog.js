@@ -1,6 +1,7 @@
 import { Log } from '../models/log.js';
 import { postHardwareLog } from '../api/index.js';
 import { log } from './logger.js';
+import { postAlertLog } from './alertLog.js';
 
 const MAX_RETRY = 5;
 
@@ -40,11 +41,15 @@ export const flushPending = async () => {
       log.ok(`SYNC OK: ${doc.endpoint} (${doc._id})`);
     } catch {
       const next = doc.retryCount + 1;
+      const isFailed = next >= MAX_RETRY;
       await Log.findByIdAndUpdate(doc._id, {
         retryCount: next,
-        ...(next >= MAX_RETRY ? { syncStatus: 'failed' } : {}),
+        ...(isFailed ? { syncStatus: 'failed' } : {}),
       });
       log.warn(`SYNC FAIL: ${doc.endpoint} retry=${next}`);
+      if (isFailed) {
+        postAlertLog('warning', `로그 동기화 최대 재시도 초과: ${doc.endpoint} (id=${doc._id})`);
+      }
     }
   }
 };

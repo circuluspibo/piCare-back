@@ -7,7 +7,7 @@ const execPromise = promisify(exec);
 export const runCommand = async (cli) => {
   try {
     const { stdout } = await execPromise(cli);
-    return JSON.parse(JSON.stringify(stdout.trim()));
+    return stdout.trim();
   } catch (error) {
     console.error(`[ERROR] Failed to run command - CLI(${cli}) | MSG(${error})`);
     return 'N/A';

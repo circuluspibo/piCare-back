@@ -53,6 +53,14 @@ export const registerHardware = async (serial) => {
 };
 
 /**
+ * 서비스/인프라 오류를 외부 IAPI에 fire-and-forget으로 전송한다.
+ * 실패해도 예외를 던지지 않음.
+ */
+export const postAlertLog = (level, message, hwId = null) => {
+  api.post("alert_log", { hwId, level, message }).catch(() => {});
+};
+
+/**
  * DB 서버로 로그를 전송하는 함수
  * 에러 처리는 호출하는 라우트 핸들러의 try-catch에서 담당하도록 throw합니다.
  */

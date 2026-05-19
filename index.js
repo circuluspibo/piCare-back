@@ -14,6 +14,7 @@ import {
   fetchHwId,
   registerHardware,
 } from "./src/api/index.js";
+import { setHwId } from "./src/utils/alertLog.js";
 import { connectDB } from "./src/db/index.js";
 import { saveAndRelay } from "./src/utils/syncLog.js";
 import { execSync } from "child_process";
@@ -278,6 +279,7 @@ const retryFetchHwId = async () => {
     hwId = await fetchHwId();
     if (hwId) {
       log.ok(`hwId loaded: ${hwId}`);
+      setHwId(hwId);
       registerHardware(hwId);
     } else {
       log.warn(`hwId 로드 실패 — ${INTERVAL / 1000}초 후 재시도`);
