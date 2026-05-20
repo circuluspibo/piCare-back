@@ -207,31 +207,29 @@ piCare-back이 중계하는 로그는 4종류다. 수집 주체와 시점이 각
 ```
 `type` 값은 URL 마지막 경로 세그먼트 (`flag`, `color`, `draw`, `listen` 등) 또는 `heartbeat`
 
-**`status_log`** — 시스템 상태 (매 정시 자동 수집)
+**`status_log`** — 시스템 상태 (매 정시 자동 수집, 일별 누적 방식)
 ```json
 {
   "hwId": "...",
-  "status": { "geo": "...", "power": "...", "temp": "...", "cpu": "...", "mem": "...", "disk": "...", "usbCnt": 0, "usbDur": 0, "trafficAmount": 0 },
-  "network": { "ping": true, "down": 0, "up": 0, "ip": "...", "ssid": "...", "signal": 0, "..." }
+  "snapshot": {
+    "geo": "...", "power": "...", "temp": "...", "cpu": "...", "mem": "...", "disk": "...",
+    "usbCnt": 0, "usbDur": 0, "trafficAmount": 0,
+    "ping": true, "down": 0, "up": 0, "ip": "...", "isp": "...", "country": "...",
+    "lat": 0, "lon": 0, "ssid": "...", "freq": "...", "signal": 0, "ap_count": 0,
+    "bootedAt": "...", "uptimeSec": 0
+  }
 }
 ```
-> ⚠️ IAPI 스키마 기준 `status.battery`와 최상위 `location` 필드가 누락된 상태. 현재 bash 명령어로 수집하지 않음. dashboard에 status 위젯 추가 시 이 두 필드 수집 방법 먼저 결정할 것.
+IAPI에서는 `{ hwId, date }` 기준으로 하루 1개 도큐먼트에 `snapshots[]` 배열로 누적됨.
+`bootedAt`/`uptimeSec`은 기존 power activity_log를 대체함.
 
-**`activity_log`** — 전원 이력 (매 정시 자동 수집)
-```json
-{
-  "hwId": "...",
-  "activityType": "power",
-  "value": 1,
-  "meta": { "onCnt": "...", "onDur": 0, "offCnt": "...", "offDur": 0 }
-}
-```
+> `activity_log` (POWER 타입)는 더 이상 수집하지 않음. SERVO_MOVE, LED, OLED 등 이벤트 기반 타입은 별도 구현 시 activity_log 유지.
 
 ### cron 스케줄 현황 (`src/plugins/cron.js`)
 
 | cron | 동작 |
 |---|---|
-| `0 * * * *` (매 정시) | status 수집, activity 수집 |
+| `0 * * * *` (매 정시) | status 수집 (snapshot 1개 생성) |
 | `*/5 * * * *` (5분마다) | pending 로그 flush (`flushPending`) |
 
 ---
@@ -277,8 +275,8 @@ mongosh mongodb://localhost:37017
 |---|---|
 | `feature_log` | `hwId`, `featureId`(required), `command`, `duration`(required) |
 | `interaction_log` | `hwId`, `type`(required), `content`, `analysis` |
-| `status_log` | `hwId`, `status`(cpu/mem/disk/temp/battery), `network`(signal/ssid/ip), `location` |
-| `activity_log` | `hwId`, `activityType`(required), `value`(required), `meta` |
+| `status_log` | `hwId`, `snapshot`(geo/power/temp/cpu/mem/disk/usbCnt/usbDur/trafficAmount/ping/down/up/ip/isp/country/lat/lon/ssid/freq/signal/ap_count/bootedAt/uptimeSec) |
+| `activity_log` | `hwId`, `activityType`(required), `value`(required), `meta` — POWER 타입 미사용, 이벤트 기반 타입(SERVO_MOVE 등) 전용 |
 
 - `hwId`는 외부 IAPI에서 `ObjectId`(ref: hws)로 관리됨. piCare-back에서는 String으로 relay 시 사용.
 

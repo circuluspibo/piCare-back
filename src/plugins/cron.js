@@ -15,7 +15,7 @@ export default async function cronPlugin(fastify, opts) {
       const { data } = JSON.parse(response.payload);
       log.cron('status', `hwId=${data?.hwId}`);
 
-      const s = data?.status;
+      const s = data?.snapshot;
       if (s) {
         const temp = parseFloat(s.temp);
         const cpu  = parseFloat(s.cpu);
@@ -32,23 +32,7 @@ export default async function cronPlugin(fastify, opts) {
     }
   });
 
-  // 2. Activity 수집 크론
-  cron.schedule(opts, async () => {
-    try {
-      const response = await fastify.inject({
-        method: 'POST',
-        url: '/v1/cli_manager',
-        payload: { type: 'activity' },
-      });
-      const { data } = JSON.parse(response.payload);
-      log.cron('activity', `hwId=${data?.hwId} type=${data?.activityType}`);
-    } catch (error) {
-      log.error(`cron activity FAILED: ${error.message}`);
-      postAlertLog('warning', `activity_log 수집 실패: ${error.message}`);
-    }
-  });
-
-  // 3. pending 로그 재시도 (5분마다)
+  // 2. pending 로그 재시도 (5분마다)
   cron.schedule('*/5 * * * *', async () => {
     try {
       await flushPending();

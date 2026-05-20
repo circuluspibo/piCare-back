@@ -6,8 +6,8 @@ import cors from "@fastify/cors";
 import {
   parseDeviceData,
   parseNetworkData,
-  parsePowerData,
   parseSystemData,
+  parseUptimeData,
 } from "./src/utils/dataFilter.js";
 import cronPlugin from "./src/plugins/cron.js";
 import {
@@ -154,20 +154,34 @@ fastify.post(
           const system = await parseSystemData();
           const device = await parseDeviceData();
           const network = await parseNetworkData();
+          const uptime = await parseUptimeData();
           result = {
             hwId,
-            status: { ...system, ...device },
-            network,
-          };
-          break;
-        }
-        case "activity": {
-          const power = await parsePowerData();
-          result = {
-            hwId,
-            activityType: "power",
-            value: 1,
-            meta: power,
+            snapshot: {
+              geo: system.geo,
+              power: system.power,
+              temp: system.temp,
+              cpu: system.cpu,
+              mem: system.mem,
+              disk: system.disk,
+              usbCnt: device.usbCnt,
+              usbDur: device.usbDur,
+              trafficAmount: device.trafficAmount,
+              ping: network.ping,
+              down: network.down,
+              up: network.up,
+              ip: network.ip,
+              isp: network.isp,
+              country: network.country,
+              lat: network.geo?.lat,
+              lon: network.geo?.lon,
+              ssid: network.ssid,
+              freq: network.freq,
+              signal: network.signal,
+              ap_count: network.ap_count,
+              bootedAt: uptime.bootedAt,
+              uptimeSec: uptime.uptimeSec,
+            },
           };
           break;
         }
@@ -175,7 +189,7 @@ fastify.post(
           throw new Error("No case");
         }
       }
-      await saveAndRelay(`${type}_log`, result);
+      await saveAndRelay('status_log', result);
       return {
         success: true,
         data: result,

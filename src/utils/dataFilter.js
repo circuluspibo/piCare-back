@@ -1,35 +1,21 @@
 import { DEVICE_INFO, NETWOK_INFO, POWER_INFO, SYSTEM_INFO } from '../assets/command.js';
 import { runCommand } from './index.js';
-import os from 'os';
 
-// NOTE: 날짜 유효성 검사
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 
-// NOTE: 전원 동작 정보 파싱
-export const parsePowerData = async () => {
+// 부팅 시점과 가동 시간만 추출
+export const parseUptimeData = async () => {
   const raw = await runCommand(POWER_INFO);
-  const m = { onCnt: 'N/A', onDur: 0, offCnt: 'N/A', offDur: 0 };
+  if (!raw || !raw.includes('|')) return { bootedAt: null, uptimeSec: 0 };
 
-  if (!raw || !raw.includes('|')) return m;
-
-  const [onTimeStr, historyStr] = raw.split('|').map((s) => s.trim());
-  const history = historyStr ? historyStr.split(',') : [];
-
+  const [onTimeStr] = raw.split('|').map((s) => s.trim());
   const onDate = new Date(onTimeStr);
-  if (!isValidDate(onDate)) return m;
+  if (!isValidDate(onDate)) return { bootedAt: null, uptimeSec: 0 };
 
-  m.onCnt = onDate.toISOString().split('.')[0] + 'Z';
-  m.onDur = Math.max(0, Math.floor((Date.now() - onDate.getTime()) / 1000));
-
-  if (history.length > 0) {
-    let offDate = new Date(history[0]);
-    if (isValidDate(offDate)) {
-      if (offDate > onDate) offDate.setFullYear(offDate.getFullYear() - 1);
-      m.offCnt = offDate.toISOString().split('.')[0] + 'Z';
-      m.offDur = Math.max(0, Math.floor((onDate.getTime() - offDate.getTime()) / 1000));
-    }
-  }
-  return m;
+  return {
+    bootedAt: onDate.toISOString().split('.')[0] + 'Z',
+    uptimeSec: Math.max(0, Math.floor((Date.now() - onDate.getTime()) / 1000)),
+  };
 };
 
 // NOTE: 시스템 정보 파싱
